@@ -27,39 +27,35 @@ router.post('/', async (req,res) => {
     console.log(req.body)
 
     try{
-        if(!email){
+        if(!email || !roll){
             return res.status(422).json({error: "Fill the fields"})
         }
         else{
             let pss = await bcrypt.hash(password,10)
-            pool.query(`
-                SELECT * FROM users`,(err,result)=>{
-                    var count = result.rowCount+1
-                    pool.query(
-                        `SELECT email FROM users WHERE email = '${email}'`,
-                        (err, result) => {
-                                if(result.rows != ''){
-                                    return res.status(422).json({error: "Mail already exists"})
-                                }
-                                else if(err){
-                                    console.log(err)
+            pool.query(
+                `SELECT email FROM users WHERE email = '${email}'`,
+                (err, result) => {
+                    if(result.rows != ''){
+                        return res.status(422).json({error: "Mail already exists"})
+                    }
+                    else if(err){
+                        console.log(err)
+                    }
+                    else{
+                        pool.query(
+                            `INSERT INTO users (name,email,password,roll) VALUES($1,$2,$3,$4)`,[name,email,pss,roll],
+                            (err, r) => {
+                                if(r){
+                                    return res.status(201).json({message: "User Registered Successfully"})
                                 }
                                 else{
-                                    pool.query(
-                                        `INSERT INTO users (user_id,name,email,password,roll) VALUES($1,$2,$3,$4,$5)`,[count,name,email,pss,roll],
-                                        (err, result) => {
-                                            if(result){
-                                                return res.status(201).json({message: "User Registered Successfully"})
-                                            }
-                                            else{
-                                                console.log(err)
-                                            }
-                                        }
-                                    );
+                                    console.log(err)
                                 }
-                        }
-                    );
-            })
+                            }
+                        );
+                    }
+                }
+            );
         }
     }catch(err){
         console.log(err+'22')
@@ -168,23 +164,27 @@ router.get('/dashboard', async(req,res)=>{
                         }
                         else if(r.rows[0].roll === 'Admin'){
                             pool.query(
-                                `SELECT files.id,files.file,files.status,users.name FROM files INNER JOIN users ON files.user_id = users.user_id`,
+                                `SELECT * FROM review WHERE email = '${req.cookies.email}'`,
                                 async(err,result) =>{
                                     try{
                                         if(result.rows != ''){
-                                            console.log(result.rows)
-                                            return res.send(
-                                                {
-                                                    user : r.rows,
-                                                    files : result.rows
+                                            pool.query(`SELECT * FROM files`,(err,re)=>{
+                                                if(re.rows != ''){
+                                                    console.log(result.rows)
+                                                    return res.send(
+                                                        {
+                                                            user : r.rows,
+                                                            review : result.rows,
+                                                            files : re.rows
+                                                        }
+                                                    )   
                                                 }
-                                            )                        
+                                            })                     
                                         }
                                         else{
                                             return res.send(
                                                 {
-                                                    user : r.rows,
-                                                    files : result.rows
+                                                    user : r.rows
                                                 }
                                             ) 
                                         }
@@ -196,33 +196,77 @@ router.get('/dashboard', async(req,res)=>{
                             )                          
                         }
                         else if(r.rows[0].roll === 'SuperAdmin'){
-                            // pool.query(
-                            //     `SELECT files.id,files.file,files.status,users.name FROM files INNER JOIN users ON files.user_id = users.user_id`,
-                            //     async(err,result) =>{
-                            //         try{
-                            //             if(result.rows != ''){
-                            //                 console.log(result.rows)
-                            //                 return res.send(
-                            //                     {
-                            //                         user : r.rows,
-                            //                         files : result.rows
-                            //                     }
-                            //                 )                        
-                            //             }
-                            //             else{
-                            //                 return res.send(
-                            //                     {
-                            //                         user : r.rows,
-                            //                         files : result.rows
-                            //                     }
-                            //                 ) 
-                            //             }
-                            //         }
-                            //         catch(er){
-                            //             console.log(er)
-                            //         }
-                            //     }
-                            // )                          
+                            pool.query(
+                                `SELECT name,user_id,roll,email from users WHERE user_id != ${req.cookies.user_id} AND roll = 'Admin'`,async(err,result) =>{
+                                    try{
+                                        if(result.rows != ''){
+                                            console.log(result.rows)
+                                            pool.query(
+                                                `SELECT * FROM files`,(err,re)=>{
+                                                    console.log(result.rows)
+                                                    if(re.rows != ''){
+                                                        pool.query(
+                                                            `SELECT * from review`,(err,rr)=>{
+                                                                if(rr.rows != ''){
+                                                                    return res.send(
+                                                                        {
+                                                                            user : r.rows,
+                                                                            admin : result.rows,
+                                                                            files : re.rows,
+                                                                            review: rr.rows
+                                                                        }
+                                                                    ) 
+                                                                }
+                                                                else{
+                                                                    return res.send(
+                                                                        {
+                                                                            user : r.rows,
+                                                                            admin : result.rows,
+                                                                            files : re.rows
+                                                                        }
+                                                                    )
+                                                                }
+                                                            }
+                                                        )
+                                                    }
+                                                    else{
+                                                        return res.send(
+                                                            {
+                                                                user : r.rows,
+                                                                admin : result.rows
+                                                            }
+                                                        )                                                        
+                                                    }
+                                                }
+                                            )                   
+                                        }
+                                        else{
+                                            pool.query(
+                                                `SELECT * FROM files`,(err,re)=>{
+                                                    if(re.rows != ''){
+                                                        return res.send(
+                                                            {
+                                                                user : r.rows,
+                                                                files : re.rows
+                                                            }
+                                                        ) 
+                                                    }
+                                                    else{
+                                                        return res.send(
+                                                            {
+                                                                user : r.rows
+                                                            }
+                                                        )                                                        
+                                                    }
+                                                }
+                                            )    
+                                        }
+                                    }
+                                    catch(er){
+                                        console.log(er)
+                                    }
+                                }
+                            )                          
                         }
                     }
                 }
@@ -238,7 +282,7 @@ router.post('/user',upload.single('file'), async(req,res)=>{
     try{
         if(req.file){
             console.log(req.body.user_id,req.file.filename)
-            pool.query(`INSERT INTO files (user_id,file,status) VALUES($1,$2,$3)`,[req.body.user_id,req.file.filename,'Processing'],
+            pool.query(`INSERT INTO files (user_id,name,title,file) VALUES($1,$2,$3,$4)`,[req.body.user_id,req.body.name,req.body.title,req.file.filename],
             (err,result) => {
                 if(result){
                     return res.status(201).json({message: "File Uploaded"})
@@ -251,6 +295,58 @@ router.post('/user',upload.single('file'), async(req,res)=>{
         else{
 
         }
+    }
+    catch(err){
+        console.log(err)
+    }
+})
+
+router.post('/assign', async(req,res)=>{
+    try{
+        const {name,email,file,status,title} = req.body
+        console.log(req.body)
+        pool.query(`SELECT * FROM review WHERE file = '${file}'`,async(err,result)=>{
+            try{
+                console.log(result.rowCount)
+                if(result.rowCount < 2){
+                    console.log(file + '-' + result.rowCount)
+                    pool.query(`INSERT INTO review (name,email,title,file,status) VALUES($1,$2,$3,$4,$5)`,[name,email,title,file,status],
+                        async(err,resul) => {
+                            try{
+                                if(resul){
+                                    return res.status(201).json({message: "File Uploaded"})
+                                }
+                                else{
+                                    console.log(err+'320')
+                                }
+                            }
+                            catch(err){
+                                console.log(err)
+                            }
+                        }
+                    )
+                }
+                else{
+                    return res.status(422).json({error: "Only two limits"})
+                }
+            }
+            catch(err){
+                console.log(err)
+            }
+        })
+    }
+    catch(err){
+        console.log(err)
+    }
+})
+
+router.put('/delete/:table',async(req,res)=>{
+    try{
+        pool.query(
+            `DELETE FROM ${req.params.table} WHERE id = ${req.body.id} `,(err,result)=>{
+                console.log(result)
+            }
+        )
     }
     catch(err){
         console.log(err)
@@ -409,14 +505,52 @@ router.put('/accept_reject',async (req,res)=>{
         const{id,status} = req.body
         console.log(req.body)
         pool.query(
-            `UPDATE files SET status = $1 WHERE id = $2`,[status,id],
-            (err, result) => {
-                console.log(result.rows)
+            `UPDATE review SET status = $1 WHERE id = $2`,[status,id],
+            async(err, result) => {
+                try{
+                    if(result.rows){
+                    console.log(result.rows)}
+                    console.log(err)
+                }
+                catch(er){
+                    console.log(er)
+                }
             }
         )
     }
     catch(err){
         console.log(err)
+    }
+})
+
+router.post('/check_status',async (req,res)=>{
+    try{
+        let count = 0
+        const {file} = req.body
+        pool.query(`SELECT status from review WHERE file = '${file}'`,(er,result)=>{
+            if(result.rows != '' && result.rowCount == 2){
+                result.rows.map((e,i)=>{
+                    if(e.status === 'Accepted'){
+                        ++count
+                    }    
+                })
+                if(count == 2){
+                    return res.status(201).send({message: "Accepted"})
+                }
+                else if(count == 1){
+                    return res.status(201).send({message: "Not Reviewed"})
+                }
+                else{
+                    return res.status(201).send({message: "Rejected"})                    
+                }
+            }
+            else{
+                return res.status(201).send({message: "Not Reviewed"})                
+            }
+        })
+    }
+    catch(er){
+        console.log(er)
     }
 })
 
