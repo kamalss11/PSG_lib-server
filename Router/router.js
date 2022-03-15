@@ -282,7 +282,7 @@ router.post('/user',upload.single('file'), async(req,res)=>{
     try{
         if(req.file){
             console.log(req.body.user_id,req.file.filename)
-            pool.query(`INSERT INTO files (user_id,name,title,file) VALUES($1,$2,$3,$4)`,[req.body.user_id,req.body.name,req.body.title,req.file.filename],
+            pool.query(`INSERT INTO files (user_id,name,title,file,date) VALUES($1,$2,$3,$4,$5)`,[req.body.user_id,req.body.name,req.body.title,req.file.filename,new Date()],
             (err,result) => {
                 if(result){
                     return res.status(201).json({message: "File Uploaded"})
