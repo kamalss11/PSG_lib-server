@@ -2,7 +2,7 @@ const Pool = require('pg').Pool
 
 const pool = new Pool({
     host: 'localhost',
-    port: '4000',
+    port: '5432',
     user: 'postgres',
     password: 'kamal',
     database: 'Lib'
@@ -45,11 +45,27 @@ const files = `
 const review = `
     CREATE TABLE IF NOT EXISTS "review"(
         "id" SERIAL,
-        "name" VARCHAR(100) NOT NULL,
-        "email" VARCHAR(100) NOT NULL,
+        "file_id" int,
+        "author" VARCHAR(100) NOT NULL,
+        "r1" VARCHAR(100) NOT NULL,
+        "r2" VARCHAR(100) NOT NULL,
+        "r1_email" VARCHAR(100) NOT NULL,
+        "r2_email" VARCHAR(100) NOT NULL,
 	    "title" VARCHAR(100) NOT NULL,
         "file" VARCHAR(100) NOT NULL,
-        "status" VARCHAR(100) NOT NULL,
+        "r1_status" VARCHAR(100) NOT NULL,
+        "r2_status" VARCHAR(100) NOT NULL,
+        "r1_comment" VARCHAR(100),
+        "r2_comment" VARCHAR(100),
+        PRIMARY KEY ("id")
+    );` 
+
+const volumes = `
+    CREATE TABLE IF NOT EXISTS "volumes"(
+        "id" SERIAL,
+        "file_id" int,
+        "file" VARCHAR(100) NOT NULL,
+        "volume_no" int NOT NULL,
         PRIMARY KEY ("id")
     );` 
 
@@ -68,6 +84,12 @@ execute(files).then(result => {
 execute(review).then(result => {
     if (result) {
         console.log('Table created review');
+    }
+})
+
+execute(volumes).then(result => {
+    if (result) {
+        console.log('Table created Volumes');
     }
 })
 

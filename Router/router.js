@@ -164,7 +164,7 @@ router.get('/dashboard', async(req,res)=>{
                         }
                         else if(r.rows[0].roll === 'Admin'){
                             pool.query(
-                                `SELECT * FROM review WHERE email = '${req.cookies.email}'`,
+                                `SELECT * FROM review WHERE r1_email  = '${req.cookies.email}' OR r2_email = '${req.cookies.email}'`,
                                 async(err,result) =>{
                                     try{
                                         if(result.rows != ''){
@@ -205,29 +205,13 @@ router.get('/dashboard', async(req,res)=>{
                                                 `SELECT * FROM files`,(err,re)=>{
                                                     console.log(result.rows)
                                                     if(re.rows != ''){
-                                                        pool.query(
-                                                            `SELECT * from review`,(err,rr)=>{
-                                                                if(rr.rows != ''){
-                                                                    return res.send(
-                                                                        {
-                                                                            user : r.rows,
-                                                                            admin : result.rows,
-                                                                            files : re.rows,
-                                                                            review: rr.rows
-                                                                        }
-                                                                    ) 
-                                                                }
-                                                                else{
-                                                                    return res.send(
-                                                                        {
-                                                                            user : r.rows,
-                                                                            admin : result.rows,
-                                                                            files : re.rows
-                                                                        }
-                                                                    )
-                                                                }
+                                                        return res.send(
+                                                            {
+                                                                user : r.rows,
+                                                                admin : result.rows,
+                                                                files : re.rows
                                                             }
-                                                        )
+                                                        ) 
                                                     }
                                                     else{
                                                         return res.send(
@@ -235,7 +219,7 @@ router.get('/dashboard', async(req,res)=>{
                                                                 user : r.rows,
                                                                 admin : result.rows
                                                             }
-                                                        )                                                        
+                                                        )                  
                                                     }
                                                 }
                                             )                   
@@ -295,45 +279,6 @@ router.post('/user',upload.single('file'), async(req,res)=>{
         else{
 
         }
-    }
-    catch(err){
-        console.log(err)
-    }
-})
-
-router.post('/assign', async(req,res)=>{
-    try{
-        const {name,email,file,status,title} = req.body
-        console.log(req.body)
-        pool.query(`SELECT * FROM review WHERE file = '${file}'`,async(err,result)=>{
-            try{
-                console.log(result.rowCount)
-                if(result.rowCount < 2){
-                    console.log(file + '-' + result.rowCount)
-                    pool.query(`INSERT INTO review (name,email,title,file,status) VALUES($1,$2,$3,$4,$5)`,[name,email,title,file,status],
-                        async(err,resul) => {
-                            try{
-                                if(resul){
-                                    return res.status(201).json({message: "File Uploaded"})
-                                }
-                                else{
-                                    console.log(err+'320')
-                                }
-                            }
-                            catch(err){
-                                console.log(err)
-                            }
-                        }
-                    )
-                }
-                else{
-                    return res.status(422).json({error: "Only two limits"})
-                }
-            }
-            catch(err){
-                console.log(err)
-            }
-        })
     }
     catch(err){
         console.log(err)
@@ -500,57 +445,160 @@ router.put('/reset_password',async (req,res)=>{
     }
 })
 
-router.put('/accept_reject',async (req,res)=>{
+router.post('/check_status',async (req,res)=>{
     try{
-        const{id,status} = req.body
-        console.log(req.body)
-        pool.query(
-            `UPDATE review SET status = $1 WHERE id = $2`,[status,id],
-            async(err, result) => {
-                try{
-                    if(result.rows){
-                    console.log(result.rows)}
-                    console.log(err)
+        const {id} = req.body
+        pool.query(`SELECT r1_status,r2_status from review WHERE file_id = ${id}`,(er,result)=>{
+            if(result.rows != ''){
+                if(result.rows[0].r1_status === 'Accepted' && result.rows[0].r2_status === 'Accepted'){
+                    return res.status(201).send({message: "Accepted"}) 
                 }
-                catch(er){
-                    console.log(er)
+
+                if(result.rows[0].r1_status === 'Rejected' && result.rows[0].r2_status === 'Rejected' || result.rows[0].r2_status === 'Rejected' || result.rows[0].r1_status === 'Rejected'){
+                    return res.status(201).send({message: "Rejected"}) 
+                }
+
+                if(result.rows[0].r1_status === 'OnProcessing' && result.rows[0].r2_status === 'OnProcessing' || result.rows[0].r1_status === 'OnProcessing' && result.rows[0].r2_status === 'Accepted' || result.rows[0].r1_status === 'Accepted' && result.rows[0].r2_status === 'OnProcessing'){
+                    return res.status(201).send({message: "OnProcessing"}) 
                 }
             }
-        )
+            else{
+                return res.status(201).send({message: "OnProcessing"})                
+            }
+        })
+    }
+    catch(er){
+        console.log(er)
+    }
+})
+
+router.get('/file/:id',async(req,res)=>{
+    try{
+        console.log(req.params.id)
+        pool.query(`SELECT * FROM files WHERE id = ${req.params.id}`,(err,result)=>{
+            if(result.rows != ''){
+                pool.query(`SELECT * FROM review WHERE file_id = ${req.params.id}`,(err,r)=>{
+                    if(r.rows != ''){
+                        return res.status(201).send({file: result.rows,reviews:r.rows}) 
+                    }
+                    else{
+                        return res.status(201).send({file: result.rows}) 
+                    }
+                })
+            }
+            else{    
+                console.log(err)           
+            }
+        }) 
     }
     catch(err){
         console.log(err)
     }
 })
 
-router.post('/check_status',async (req,res)=>{
+router.post('/reviewers',async(req,res)=>{
     try{
-        let count = 0
-        const {file} = req.body
-        pool.query(`SELECT status from review WHERE file = '${file}'`,(er,result)=>{
-            if(result.rows != '' && result.rowCount == 2){
-                result.rows.map((e,i)=>{
-                    if(e.status === 'Accepted'){
-                        ++count
-                    }    
-                })
-                if(count == 2){
-                    return res.status(201).send({message: "Accepted"})
-                }
-                else if(count == 1){
-                    return res.status(201).send({message: "Not Reviewed"})
-                }
-                else{
-                    return res.status(201).send({message: "Rejected"})                    
-                }
+        console.log(req.body)
+        const {file_id,author,reviewer1,reviewer2,r1_email,r2_email,title,file,status} = req.body
+        pool.query(`INSERT INTO review (file_id,author,r1,r2,r1_email,r2_email,title,file,r1_status,r2_status) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,[file_id,author,reviewer1,reviewer2,r1_email,r2_email,title,file,status,status],
+        (err,result) => {
+            if(result){
+                return res.status(201).json({message: "File Uploaded"})
             }
             else{
-                return res.status(201).send({message: "Not Reviewed"})                
+                console.log(err+'536')
             }
         })
     }
-    catch(er){
-        console.log(er)
+    catch(err){
+        console.log(err)
+    }
+})
+
+router.put('/reviewers', async(req,res)=>{
+    try{
+        const {comment,file_id,status,rev1_email,rev2_email} = req.body
+        console.log(req.body)
+        if(rev1_email){
+            pool.query(
+                `UPDATE review SET r1_status = $1,r1_comment = $2 WHERE id = $3`,[status,comment,file_id],
+                (err, result) => {
+                    console.log(result.rows)
+                    console.log(err)
+                }
+            )
+        }
+        else if(rev2_email){
+            pool.query(
+                `UPDATE review SET r2_status = $1,r2_comment = $2 WHERE id = $3`,[status,comment,file_id],
+                (err, result) => {
+                    console.log(result.rows)
+                    console.log(err)
+                }
+            )            
+        }
+    }
+    catch(err){
+        console.log(err)
+    }
+})
+
+router.get('/archives',async(req,res)=>{
+    try{
+        let volume_size = 5, accepted = [],filtered_accp = [],volumes = [],volume_count,volume
+        pool.query(`SELECT * FROM review WHERE r1_status = 'Accepted' AND r2_status = 'Accepted'`,(er,ress)=>{
+            if(ress.rows != ''){
+                accepted = ress.rows
+                console.log(accepted)        
+                pool.query(`SELECT * FROM volumes `,(er,ressw)=>{
+                    if(ress.rows != ''){
+                        volumes = ressw.rows
+                        volume_count = ressw.rowCount
+                        console.log(volumes)
+                        filtered_accp = accepted.filter((e,i)=>{
+                            return !volumes.find((ee,ii)=>{
+                                return ee.file === e.file
+                            })
+                        })
+                        console.log('Filtereds',filtered_accp)
+
+                        if(filtered_accp){
+                            filtered_accp = filtered_accp.slice(0,volume_size)
+                        }
+
+                        if(filtered_accp.length === volume_size){
+                            volume = (volume_count / volume_size) + 1
+                            filtered_accp.map((e,i)=>{
+                                pool.query(`INSERT INTO volumes (file_id,file,volume_no)  VALUES($1,$2,$3)`,[e.file_id,e.file,volume],(err,result)=>{
+                                    console.log(result)
+                                    console.log(err)
+                                })
+                            })
+                        }
+                    }
+                    else{
+                        console.log('No Volumes')
+                        accepted.map((e,i)=>{
+                            pool.query(`INSERT INTO volumes (file,file_id,volume_no)  VALUES($1,$2,$3)`,[e.file,e.file_id,1],(err,result)=>{
+                                console.log(result)
+                                console.log(err)
+                            })
+                        })
+                    }
+                })    
+                pool.query(`SELECT * FROM volumes `,(er,ressw)=>{
+                    if(ressw.rows != ''){
+                        res.send({volumes: ressw.rows})
+                    }
+                    else{
+                        res.send({volumes: 'No Volumes'})
+                    }
+                })
+            }
+        })
+    }
+    catch(err){
+        console.log(err)
     }
 })
 
