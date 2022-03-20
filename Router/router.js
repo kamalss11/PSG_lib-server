@@ -138,15 +138,28 @@ router.get('/dashboard', async(req,res)=>{
                     if(r.rows != ''){
                         if(r.rows[0].roll === 'User'){
                             pool.query(
-                                `SELECT *,*  FROM users LEFT JOIN files ON users.user_id = files.user_id WHERE users.user_id = ${req.cookies.user_id}`,
+                                `SELECT *,* FROM users 
+                                LEFT JOIN files ON users.user_id = files.user_id WHERE users.user_id = ${req.cookies.user_id}`,
                                 async(err,result) =>{
                                     try{
                                         if(result.rows != '' && result.rows[0].user_id != null){
-                                            return res.send(
-                                                {
-                                                    user : result.rows
+                                            pool.query(`SELECT * FROM review`,(e,re)=>{
+                                                if(re.rows != ''){
+                                                    return res.send(
+                                                        {
+                                                            user : result.rows,
+                                                            review : re.rows
+                                                        }
+                                                    ) 
                                                 }
-                                            )                        
+                                                else{
+                                                    return res.send(
+                                                        {
+                                                            user : result.rows
+                                                        }
+                                                    )
+                                                }
+                                            })                       
                                         }
                                         else{
                                             return res.send(
@@ -499,14 +512,14 @@ router.get('/file/:id',async(req,res)=>{
 router.post('/reviewers',async(req,res)=>{
     try{
         console.log(req.body)
-        const {file_id,author,reviewer1,reviewer2,r1_email,r2_email,title,file,status} = req.body
-        pool.query(`INSERT INTO review (file_id,author,r1,r2,r1_email,r2_email,title,file,r1_status,r2_status) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,[file_id,author,reviewer1,reviewer2,r1_email,r2_email,title,file,status,status],
+        const {file_id,user_id,author,reviewer1,reviewer2,r1_email,r2_email,title,file,status} = req.body
+        pool.query(`INSERT INTO review (file_id,user_id,author,r1,r2,r1_email,r2_email,title,file,r1_status,r2_status) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,[file_id,user_id,author,reviewer1,reviewer2,r1_email,r2_email,title,file,status,status],
         (err,result) => {
             if(result){
                 return res.status(201).json({message: "File Uploaded"})
             }
             else{
-                console.log(err+'536')
+                console.log(err+'510')
             }
         })
     }
@@ -517,14 +530,58 @@ router.post('/reviewers',async(req,res)=>{
 
 router.put('/reviewers', async(req,res)=>{
     try{
+        let volume_size = 5, accepted = [],filtered_accp = [],volumes = [],volume_count,volume
         const {comment,file_id,status,rev1_email,rev2_email} = req.body
         console.log(req.body)
         if(rev1_email){
             pool.query(
                 `UPDATE review SET r1_status = $1,r1_comment = $2 WHERE id = $3`,[status,comment,file_id],
                 (err, result) => {
-                    console.log(result.rows)
-                    console.log(err)
+                    if(result){
+                        pool.query(`SELECT * FROM review WHERE r1_status = 'Accepted' AND r2_status = 'Accepted'`,(er,ress)=>{
+                            if(ress.rows != ''){
+                                accepted = ress.rows
+                                console.log(accepted)        
+                                pool.query(`SELECT * FROM volumes `,(er,ressw)=>{
+                                    if(ress.rows != ''){
+                                        volumes = ressw.rows
+                                        volume_count = ressw.rowCount
+                                        console.log(volumes)
+                                        filtered_accp = accepted.filter((e,i)=>{
+                                            return !volumes.find((ee,ii)=>{
+                                                return ee.file === e.file
+                                            })
+                                        })
+                                        console.log('Filtereds',filtered_accp)
+                
+                                        if(filtered_accp){
+                                            filtered_accp = filtered_accp.slice(0,volume_size)
+                                        }
+                
+                                        if(filtered_accp.length === volume_size){
+                                            volume = (volume_count / volume_size) + 1
+                                            filtered_accp.map((e,i)=>{
+                                                pool.query(`INSERT INTO volumes (file_id,file,volume_no,no)  VALUES($1,$2,$3,$4)`,[e.file_id,e.file,volume,i+1],(err,result)=>{
+                                                    console.log(result)
+                                                    console.log(err)
+                                                })
+                                            })
+                                        }
+                                    }
+                                    else{
+                                        console.log('No Volumes')
+                                        accepted.map((e,i)=>{
+                                            pool.query(`INSERT INTO volumes (file,file_id,volume_no)  VALUES($1,$2,$3)`,[e.file,e.file_id,1],(err,result)=>{
+                                                console.log(result)
+                                                console.log(err)
+                                            })
+                                        })
+                                    }
+                                })  
+                            }
+                        })
+                        res.send(result.rows)
+                    }
                 }
             )
         }
@@ -532,8 +589,51 @@ router.put('/reviewers', async(req,res)=>{
             pool.query(
                 `UPDATE review SET r2_status = $1,r2_comment = $2 WHERE id = $3`,[status,comment,file_id],
                 (err, result) => {
-                    console.log(result.rows)
-                    console.log(err)
+                    if(result){
+                        pool.query(`SELECT * FROM review WHERE r1_status = 'Accepted' AND r2_status = 'Accepted'`,(er,ress)=>{
+                            if(ress.rows != ''){
+                                accepted = ress.rows
+                                console.log(accepted)        
+                                pool.query(`SELECT * FROM volumes `,(er,ressw)=>{
+                                    if(ress.rows != ''){
+                                        volumes = ressw.rows
+                                        volume_count = ressw.rowCount
+                                        console.log(volumes)
+                                        filtered_accp = accepted.filter((e,i)=>{
+                                            return !volumes.find((ee,ii)=>{
+                                                return ee.file === e.file
+                                            })
+                                        })
+                                        console.log('Filtereds',filtered_accp)
+                
+                                        if(filtered_accp){
+                                            filtered_accp = filtered_accp.slice(0,volume_size)
+                                        }
+                
+                                        if(filtered_accp.length === volume_size){
+                                            volume = (volume_count / volume_size) + 1
+                                            filtered_accp.map((e,i)=>{
+                                                pool.query(`INSERT INTO volumes (file_id,file,volume_no,no)  VALUES($1,$2,$3,$4)`,[e.file_id,e.file,volume,i+1],(err,result)=>{
+                                                    console.log(result)
+                                                    console.log(err)
+                                                })
+                                            })
+                                        }
+                                    }
+                                    else{
+                                        console.log('No Volumes')
+                                        accepted.map((e,i)=>{
+                                            pool.query(`INSERT INTO volumes (file,file_id,volume_no)  VALUES($1,$2,$3)`,[e.file,e.file_id,1],(err,result)=>{
+                                                console.log(result)
+                                                console.log(err)
+                                            })
+                                        })
+                                    }
+                                })  
+                            }
+                        })
+                        res.send(result.rows)
+                    }
                 }
             )            
         }
@@ -545,55 +645,12 @@ router.put('/reviewers', async(req,res)=>{
 
 router.get('/archives',async(req,res)=>{
     try{
-        let volume_size = 5, accepted = [],filtered_accp = [],volumes = [],volume_count,volume
-        pool.query(`SELECT * FROM review WHERE r1_status = 'Accepted' AND r2_status = 'Accepted'`,(er,ress)=>{
+        pool.query(`SELECT * FROM volumes ORDER BY volume_no ASC , no ASC`,(er,ress)=>{
             if(ress.rows != ''){
-                accepted = ress.rows
-                console.log(accepted)        
-                pool.query(`SELECT * FROM volumes `,(er,ressw)=>{
-                    if(ress.rows != ''){
-                        volumes = ressw.rows
-                        volume_count = ressw.rowCount
-                        console.log(volumes)
-                        filtered_accp = accepted.filter((e,i)=>{
-                            return !volumes.find((ee,ii)=>{
-                                return ee.file === e.file
-                            })
-                        })
-                        console.log('Filtereds',filtered_accp)
-
-                        if(filtered_accp){
-                            filtered_accp = filtered_accp.slice(0,volume_size)
-                        }
-
-                        if(filtered_accp.length === volume_size){
-                            volume = (volume_count / volume_size) + 1
-                            filtered_accp.map((e,i)=>{
-                                pool.query(`INSERT INTO volumes (file_id,file,volume_no)  VALUES($1,$2,$3)`,[e.file_id,e.file,volume],(err,result)=>{
-                                    console.log(result)
-                                    console.log(err)
-                                })
-                            })
-                        }
-                    }
-                    else{
-                        console.log('No Volumes')
-                        accepted.map((e,i)=>{
-                            pool.query(`INSERT INTO volumes (file,file_id,volume_no)  VALUES($1,$2,$3)`,[e.file,e.file_id,1],(err,result)=>{
-                                console.log(result)
-                                console.log(err)
-                            })
-                        })
-                    }
-                })    
-                pool.query(`SELECT * FROM volumes `,(er,ressw)=>{
-                    if(ressw.rows != ''){
-                        res.send({volumes: ressw.rows})
-                    }
-                    else{
-                        res.send({volumes: 'No Volumes'})
-                    }
-                })
+                res.send({volumes: ress.rows,file_count: ress.rowCount})
+            }
+            else{
+                res.send({message: 'No Volumes'})
             }
         })
     }

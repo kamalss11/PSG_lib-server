@@ -46,6 +46,7 @@ const review = `
     CREATE TABLE IF NOT EXISTS "review"(
         "id" SERIAL,
         "file_id" int,
+        "user_id" int,
         "author" VARCHAR(100) NOT NULL,
         "r1" VARCHAR(100) NOT NULL,
         "r2" VARCHAR(100) NOT NULL,
@@ -57,7 +58,8 @@ const review = `
         "r2_status" VARCHAR(100) NOT NULL,
         "r1_comment" VARCHAR(100),
         "r2_comment" VARCHAR(100),
-        PRIMARY KEY ("id")
+        PRIMARY KEY ("id"),
+        FOREIGN KEY ("user_id") REFERENCES users("user_id")
     );` 
 
 const volumes = `
@@ -66,6 +68,7 @@ const volumes = `
         "file_id" int,
         "file" VARCHAR(100) NOT NULL,
         "volume_no" int NOT NULL,
+        "no" int,
         PRIMARY KEY ("id")
     );` 
 
