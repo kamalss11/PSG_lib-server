@@ -647,7 +647,24 @@ router.get('/archives',async(req,res)=>{
     try{
         pool.query(`SELECT * FROM volumes ORDER BY volume_no ASC , no ASC`,(er,ress)=>{
             if(ress.rows != ''){
-                res.send({volumes: ress.rows,file_count: ress.rowCount})
+                res.send({volumes: ress.rows,file_count: ress.rowCount,volumeCount: ress.rowCount / 5})
+            }
+            else{
+                res.send({message: 'No Volumes'})
+            }
+        })
+    }
+    catch(err){
+        console.log(err)
+    }
+})
+
+router.get('/volume/:no',async(req,res)=>{
+    try{
+        pool.query(`SELECT * FROM volumes WHERE volume_no = ${req.params.no} ORDER BY no ASC `,(er,ress)=>{
+            console.log(ress.rows)
+            if(ress.rows != ''){
+                res.send({volumes: ress.rows})
             }
             else{
                 res.send({message: 'No Volumes'})
