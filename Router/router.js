@@ -177,7 +177,7 @@ router.get('/dashboard', async(req,res)=>{
                         }
                         else if(r.rows[0].roll === 'Admin'){
                             pool.query(
-                                `SELECT * FROM review WHERE r1_email  = '${req.cookies.email}' OR r2_email = '${req.cookies.email}'`,
+                                `SELECT * FROM review WHERE r1_email  = '${req.cookies.email}' OR r2_email = '${req.cookies.email}' ORDER BY id ASC`,
                                 async(err,result) =>{
                                     try{
                                         if(result.rows != ''){
@@ -528,10 +528,10 @@ router.post('/reviewers',async(req,res)=>{
     }
 })
 
-router.put('/reviewers', async(req,res)=>{
+router.put('/reviewers',async(req,res)=>{
     try{
-        let volume_size = 5, accepted = [],filtered_accp = [],volumes = [],volume_count,volume
-        const {comment,file_id,status,rev1_email,rev2_email} = req.body
+        let acp = [],volumes = [],filtered_accp = []
+        const {comment,file,file_id,status,rev1_email,rev2_email} = req.body
         console.log(req.body)
         if(rev1_email){
             pool.query(
@@ -539,48 +539,38 @@ router.put('/reviewers', async(req,res)=>{
                 (err, result) => {
                     if(result){
                         pool.query(`SELECT * FROM review WHERE r1_status = 'Accepted' AND r2_status = 'Accepted'`,(er,ress)=>{
-                            if(ress.rows != ''){
-                                accepted = ress.rows
-                                console.log(accepted)        
-                                pool.query(`SELECT * FROM volumes `,(er,ressw)=>{
-                                    if(ress.rows != ''){
-                                        volumes = ressw.rows
-                                        volume_count = ressw.rowCount
-                                        console.log(volumes)
-                                        filtered_accp = accepted.filter((e,i)=>{
-                                            return !volumes.find((ee,ii)=>{
-                                                return ee.file === e.file
-                                            })
-                                        })
-                                        console.log('Filtereds',filtered_accp)
-                
-                                        if(filtered_accp){
-                                            filtered_accp = filtered_accp.slice(0,volume_size)
-                                        }
-                
-                                        if(filtered_accp.length === volume_size){
-                                            volume = (volume_count / volume_size) + 1
-                                            filtered_accp.map((e,i)=>{
-                                                pool.query(`INSERT INTO volumes (file_id,file,volume_no,no)  VALUES($1,$2,$3,$4)`,[e.file_id,e.file,volume,i+1],(err,result)=>{
-                                                    console.log(result)
-                                                    console.log(err)
-                                                })
-                                            })
-                                        }
+                        if(ress.rows != ''){
+                            acp = ress.rows
+                            pool.query(`SELECT * FROM volumes`,(err,re)=>{
+                                if(re.rows != ''){
+                                    if(re.rows[re.rowCount - 1].file_no === 5 && re.rows[re.rowCount - 1].no === 5){
+                                        pool.query(`INSERT INTO volumes (file_id,file,volume_no,no,file_no,year)  VALUES($1,$2,$3,$4,$5,$6)`,[file_id,file,re.rows[re.rowCount - 1].volume_no + 1,1,1,new Date().getFullYear()],(err,result)=>{
+                                            console.log(result)
+                                            console.log(err)
+                                        })                                             
                                     }
-                                    else{
-                                        console.log('No Volumes')
-                                        accepted.map((e,i)=>{
-                                            pool.query(`INSERT INTO volumes (file,file_id,volume_no)  VALUES($1,$2,$3)`,[e.file,e.file_id,1],(err,result)=>{
-                                                console.log(result)
-                                                console.log(err)
-                                            })
-                                        })
-                                    }
-                                })  
-                            }
-                        })
-                        res.send(result.rows)
+                                    else if(re.rowCount % 5 != 0){
+                                        pool.query(`INSERT INTO volumes (file_id,file,volume_no,no,file_no,year)  VALUES($1,$2,$3,$4,$5,$6)`,[file_id,file,re.rows[re.rowCount - 1].volume_no,re.rows[re.rowCount - 1].no,re.rows[re.rowCount - 1].file_no + 1,new Date().getFullYear()],(err,result)=>{
+                                        console.log(result)
+                                        console.log(err)
+                                        }) 
+                                    }  
+                                    else if(re.rowCount % 5 === 0){
+                                        pool.query(`INSERT INTO volumes (file_id,file,volume_no,no,file_no,year)  VALUES($1,$2,$3,$4,$5,$6)`,[file_id,file,re.rows[re.rowCount - 1].volume_no,re.rows[re.rowCount - 1].no + 1,1,new Date().getFullYear()],(err,result)=>{
+                                        console.log(result)
+                                        console.log(err)
+                                        }) 
+                                    }  
+                                }
+                                else{
+                                    pool.query(`INSERT INTO volumes (file_id,file,volume_no,no,file_no,year)  VALUES($1,$2,$3,$4,$5,$6)`,[file_id,file,1,1,1,new Date().getFullYear()],(err,result)=>{
+                                        console.log(result)
+                                        console.log(err)
+                                    })
+                                }
+                            })
+                        }
+                        }) 
                     }
                 }
             )
@@ -590,58 +580,165 @@ router.put('/reviewers', async(req,res)=>{
                 `UPDATE review SET r2_status = $1,r2_comment = $2 WHERE id = $3`,[status,comment,file_id],
                 (err, result) => {
                     if(result){
-                        pool.query(`SELECT * FROM review WHERE r1_status = 'Accepted' AND r2_status = 'Accepted'`,(er,ress)=>{
+                        if(result){
+                            pool.query(`SELECT * FROM review WHERE r1_status = 'Accepted' AND r2_status = 'Accepted'`,(er,ress)=>{
                             if(ress.rows != ''){
-                                accepted = ress.rows
-                                console.log(accepted)        
-                                pool.query(`SELECT * FROM volumes `,(er,ressw)=>{
-                                    if(ress.rows != ''){
-                                        volumes = ressw.rows
-                                        volume_count = ressw.rowCount
-                                        console.log(volumes)
-                                        filtered_accp = accepted.filter((e,i)=>{
-                                            return !volumes.find((ee,ii)=>{
-                                                return ee.file === e.file
-                                            })
-                                        })
-                                        console.log('Filtereds',filtered_accp)
-                
-                                        if(filtered_accp){
-                                            filtered_accp = filtered_accp.slice(0,volume_size)
-                                        }
-                
-                                        if(filtered_accp.length === volume_size){
-                                            volume = (volume_count / volume_size) + 1
-                                            filtered_accp.map((e,i)=>{
-                                                pool.query(`INSERT INTO volumes (file_id,file,volume_no,no)  VALUES($1,$2,$3,$4)`,[e.file_id,e.file,volume,i+1],(err,result)=>{
-                                                    console.log(result)
-                                                    console.log(err)
-                                                })
-                                            })
-                                        }
-                                    }
-                                    else{
-                                        console.log('No Volumes')
-                                        accepted.map((e,i)=>{
-                                            pool.query(`INSERT INTO volumes (file,file_id,volume_no)  VALUES($1,$2,$3)`,[e.file,e.file_id,1],(err,result)=>{
+                                acp = ress.rows
+                                pool.query(`SELECT * FROM volumes`,(err,re)=>{
+                                    if(re.rows != ''){
+                                        if(re.rows[re.rowCount - 1].file_no === 5 && re.rows[re.rowCount - 1].no === 5){
+                                            pool.query(`INSERT INTO volumes (file_id,file,volume_no,no,file_no,year)  VALUES($1,$2,$3,$4,$5,$6)`,[file_id,file,re.rows[re.rowCount - 1].volume_no + 1,1,1,new Date().getFullYear()],(err,result)=>{
                                                 console.log(result)
                                                 console.log(err)
-                                            })
+                                            })                                             
+                                        }
+                                        else if(re.rowCount % 5 != 0){
+                                            pool.query(`INSERT INTO volumes (file_id,file,volume_no,no,file_no,year)  VALUES($1,$2,$3,$4,$5,$6)`,[file_id,file,re.rows[re.rowCount - 1].volume_no,re.rows[re.rowCount - 1].no,re.rows[re.rowCount - 1].file_no + 1,new Date().getFullYear()],(err,result)=>{
+                                            console.log(result)
+                                            console.log(err)
+                                            }) 
+                                        }  
+                                        else if(re.rowCount % 5 === 0){
+                                            pool.query(`INSERT INTO volumes (file_id,file,volume_no,no,file_no,year)  VALUES($1,$2,$3,$4,$5,$6)`,[file_id,file,re.rows[re.rowCount - 1].volume_no,re.rows[re.rowCount - 1].no + 1,1,new Date().getFullYear()],(err,result)=>{
+                                            console.log(result)
+                                            console.log(err)
+                                            }) 
+                                        }  
+                                    }
+                                    else{
+                                        pool.query(`INSERT INTO volumes (file_id,file,volume_no,no,file_no,year)  VALUES($1,$2,$3,$4,$5,$6)`,[file_id,file,1,1,1,new Date().getFullYear()],(err,result)=>{
+                                            console.log(result)
+                                            console.log(err)
                                         })
                                     }
-                                })  
+                                })
                             }
-                        })
-                        res.send(result.rows)
+                            }) 
+                        }
                     }
                 }
             )            
-        }
+        }       
     }
     catch(err){
         console.log(err)
     }
 })
+
+// router.put('/reviewers', async(req,res)=>{
+//     try{
+//         let volume_size = 5, accepted = [],filtered_accp = [],volumes = [],volume_count,volume
+//         const {comment,file_id,status,rev1_email,rev2_email} = req.body
+//         console.log(req.body)
+//         if(rev1_email){
+//             pool.query(
+//                 `UPDATE review SET r1_status = $1,r1_comment = $2 WHERE id = $3`,[status,comment,file_id],
+//                 (err, result) => {
+//                     if(result){
+//                         pool.query(`SELECT * FROM review WHERE r1_status = 'Accepted' AND r2_status = 'Accepted'`,(er,ress)=>{
+//                             if(ress.rows != ''){
+//                                 accepted = ress.rows
+//                                 console.log(accepted)        
+//                                 pool.query(`SELECT * FROM volumes `,(er,ressw)=>{
+//                                     if(ress.rows != ''){
+//                                         volumes = ressw.rows
+//                                         volume_count = ressw.rowCount
+//                                         console.log(volumes)
+//                                         filtered_accp = accepted.filter((e,i)=>{
+//                                             return !volumes.find((ee,ii)=>{
+//                                                 return ee.file === e.file
+//                                             })
+//                                         })
+//                                         console.log('Filtereds',filtered_accp)
+                
+//                                         if(filtered_accp){
+//                                             filtered_accp = filtered_accp.slice(0,volume_size)
+//                                         }
+                
+//                                         if(filtered_accp.length === volume_size){
+//                                             volume = (volume_count / volume_size) + 1
+//                                             filtered_accp.map((e,i)=>{
+//                                                 pool.query(`INSERT INTO volumes (file_id,file,volume_no,no)  VALUES($1,$2,$3,$4)`,[e.file_id,e.file,volume,i+1],(err,result)=>{
+//                                                     console.log(result)
+//                                                     console.log(err)
+//                                                 })
+//                                             })
+//                                         }
+//                                     }
+//                                     else{
+//                                         console.log('No Volumes')
+//                                         accepted.map((e,i)=>{
+//                                             pool.query(`INSERT INTO volumes (file,file_id,volume_no)  VALUES($1,$2,$3)`,[e.file,e.file_id,1],(err,result)=>{
+//                                                 console.log(result)
+//                                                 console.log(err)
+//                                             })
+//                                         })
+//                                     }
+//                                 })  
+//                             }
+//                         })
+//                         res.send(result.rows)
+//                     }
+//                 }
+//             )
+//         }
+//         else if(rev2_email){
+//             pool.query(
+//                 `UPDATE review SET r2_status = $1,r2_comment = $2 WHERE id = $3`,[status,comment,file_id],
+//                 (err, result) => {
+//                     if(result){
+//                         pool.query(`SELECT * FROM review WHERE r1_status = 'Accepted' AND r2_status = 'Accepted'`,(er,ress)=>{
+//                             if(ress.rows != ''){
+//                                 accepted = ress.rows
+//                                 console.log(accepted)        
+//                                 pool.query(`SELECT * FROM volumes `,(er,ressw)=>{
+//                                     if(ress.rows != ''){
+//                                         volumes = ressw.rows
+//                                         volume_count = ressw.rowCount
+//                                         console.log(volumes)
+//                                         filtered_accp = accepted.filter((e,i)=>{
+//                                             return !volumes.find((ee,ii)=>{
+//                                                 return ee.file === e.file
+//                                             })
+//                                         })
+//                                         console.log('Filtereds',filtered_accp)
+                
+//                                         if(filtered_accp){
+//                                             filtered_accp = filtered_accp.slice(0,volume_size)
+//                                         }
+                
+//                                         if(filtered_accp.length === volume_size){
+//                                             volume = (volume_count / volume_size) + 1
+//                                             filtered_accp.map((e,i)=>{
+//                                                 pool.query(`INSERT INTO volumes (file_id,file,volume_no,no)  VALUES($1,$2,$3,$4)`,[e.file_id,e.file,volume,i+1],(err,result)=>{
+//                                                     console.log(result)
+//                                                     console.log(err)
+//                                                 })
+//                                             })
+//                                         }
+//                                     }
+//                                     else{
+//                                         console.log('No Volumes')
+//                                         accepted.map((e,i)=>{
+//                                             pool.query(`INSERT INTO volumes (file,file_id,volume_no)  VALUES($1,$2,$3)`,[e.file,e.file_id,1],(err,result)=>{
+//                                                 console.log(result)
+//                                                 console.log(err)
+//                                             })
+//                                         })
+//                                     }
+//                                 })  
+//                             }
+//                         })
+//                         res.send(result.rows)
+//                     }
+//                 }
+//             )            
+//         }
+//     }
+//     catch(err){
+//         console.log(err)
+//     }
+// })
 
 router.get('/archives',async(req,res)=>{
     try{

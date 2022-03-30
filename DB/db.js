@@ -4,7 +4,7 @@ const pool = new Pool({
     host: 'localhost',
     port: '5432',
     user: 'postgres',
-    password: 'mnk',
+    password: 'kamal',
     database: 'Lib'
 })
 
@@ -69,6 +69,8 @@ const volumes = `
         "file" VARCHAR(100) NOT NULL,
         "volume_no" int NOT NULL,
         "no" int,
+        "file_no" int,
+        "year" varchar(100),
         PRIMARY KEY ("id")
     );` 
 
