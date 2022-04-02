@@ -38,6 +38,7 @@ const files = `
 	    "title" VARCHAR(100) NOT NULL,
 	    "file" VARCHAR(100) NOT NULL,
         "date" DATE,
+        "status" VARCHAR(100),
         PRIMARY KEY ("id"),
         FOREIGN KEY ("user_id") REFERENCES users("user_id")
     );`

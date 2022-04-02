@@ -279,7 +279,7 @@ router.post('/user',upload.single('file'), async(req,res)=>{
     try{
         if(req.file){
             console.log(req.body.user_id,req.file.filename)
-            pool.query(`INSERT INTO files (user_id,name,title,file,date) VALUES($1,$2,$3,$4,$5)`,[req.body.user_id,req.body.name,req.body.title,req.file.filename,new Date()],
+            pool.query(`INSERT INTO files (user_id,name,title,file,date,status) VALUES($1,$2,$3,$4,$5,$6)`,[req.body.user_id,req.body.name,req.body.title,req.file.filename,new Date(),'OnProcessing'],
             (err,result) => {
                 if(result){
                     return res.status(201).json({message: "File Uploaded"})
@@ -538,8 +538,9 @@ router.put('/reviewers',async(req,res)=>{
                 `UPDATE review SET r1_status = $1,r1_comment = $2 WHERE id = $3`,[status,comment,file_id],
                 (err, result) => {
                     if(result){
-                        pool.query(`SELECT * FROM review WHERE r1_status = 'Accepted' AND r2_status = 'Accepted'`,(er,ress)=>{
+                        pool.query(`SELECT * FROM review WHERE file = '${file}' AND r1_status = 'Accepted' AND r2_status = 'Accepted'`,(er,ress)=>{
                         if(ress.rows != ''){
+                            pool.query(`UPDATE file SET status = $1 WHERE file = $2`,['Accepted',file])
                             acp = ress.rows
                             pool.query(`SELECT * FROM volumes`,(err,re)=>{
                                 if(re.rows != ''){
@@ -581,8 +582,14 @@ router.put('/reviewers',async(req,res)=>{
                 (err, result) => {
                     if(result){
                         if(result){
-                            pool.query(`SELECT * FROM review WHERE r1_status = 'Accepted' AND r2_status = 'Accepted'`,(er,ress)=>{
+                            pool.query(`SELECT * FROM review WHERE file = '${file}' AND r1_status = 'Rejected' OR r2_status = 'Rejected'`,(er,ress)=>{
+                                if(ress.rows != ''){
+                                    pool.query(`UPDATE files SET status = $1 WHERE file = $2`,['Rejected',file])
+                                }
+                            })
+                            pool.query(`SELECT * FROM review WHERE file = '${file}' AND r1_status = 'Accepted' AND r2_status = 'Accepted'`,(er,ress)=>{
                             if(ress.rows != ''){
+                                pool.query(`UPDATE files SET status = $1 WHERE file = $2`,['Accepted',file])
                                 acp = ress.rows
                                 pool.query(`SELECT * FROM volumes`,(err,re)=>{
                                     if(re.rows != ''){
