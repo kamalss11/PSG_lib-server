@@ -538,6 +538,11 @@ router.put('/reviewers',async(req,res)=>{
                 `UPDATE review SET r1_status = $1,r1_comment = $2 WHERE id = $3`,[status,comment,file_id],
                 (err, result) => {
                     if(result){
+                        pool.query(`SELECT * FROM review WHERE file = '${file}' AND r1_status = 'Rejected' OR r2_status = 'Rejected'`,(er,ress)=>{
+                            if(ress.rows != ''){
+                                pool.query(`UPDATE files SET status = $1 WHERE file = $2`,['Rejected',file])
+                            }
+                        })
                         pool.query(`SELECT * FROM review WHERE file = '${file}' AND r1_status = 'Accepted' AND r2_status = 'Accepted'`,(er,ress)=>{
                         if(ress.rows != ''){
                             pool.query(`UPDATE file SET status = $1 WHERE file = $2`,['Accepted',file])
@@ -749,7 +754,7 @@ router.put('/reviewers',async(req,res)=>{
 
 router.get('/archives',async(req,res)=>{
     try{
-        pool.query(`SELECT * FROM volumes ORDER BY volume_no ASC , no ASC`,(er,ress)=>{
+        pool.query(`SELECT DISTINCT volume_no FROM volumes ORDER BY volume_no ASC`,(er,ress)=>{
             if(ress.rows != ''){
                 res.send({volumes: ress.rows,file_count: ress.rowCount,volumeCount: ress.rowCount / 5})
             }
