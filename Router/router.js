@@ -756,7 +756,7 @@ router.get('/archives',async(req,res)=>{
     try{
         pool.query(`SELECT DISTINCT volume_no FROM volumes ORDER BY volume_no ASC`,(er,ress)=>{
             if(ress.rows != ''){
-                res.send({volumes: ress.rows,file_count: ress.rowCount,volumeCount: ress.rowCount / 5})
+                res.send({volumes: ress.rows})
             }
             else{
                 res.send({message: 'No Volumes'})
