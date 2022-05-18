@@ -1,3 +1,5 @@
+
+
 const express = require('express')
 const bcrypt = require('bcryptjs')
 const crypto = require('crypto')
@@ -399,7 +401,7 @@ router.post('/forget_password',async (req,res)=>{
                                 service: 'gmail',
                                 auth: {
                                     user: 'kamalesh1132002@gmail.com',
-                                    pass: 'kamalesh5050'
+                                    pass: 'Kamalesh5050'
                                 }
                             }))
                             var mailOptions = {
@@ -516,6 +518,41 @@ router.post('/reviewers',async(req,res)=>{
         pool.query(`INSERT INTO review (file_id,user_id,author,r1,r2,r1_email,r2_email,title,file,r1_status,r2_status) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,[file_id,user_id,author,reviewer1,reviewer2,r1_email,r2_email,title,file,status,status],
         (err,result) => {
             if(result){
+                var transporter = nodemailer.createTransport(smtpTransport({
+                    service: 'gmail',
+                    auth: {
+                        user: 'kamalesh1132002@gmail.com',
+                        pass: 'Kamalesh5050'
+                    }
+                }))
+
+                var mailOptions = {
+                    from: 'ikamaloffc@gmail.com',
+                    to: `${r1_email}`,
+                    subject: 'Regarding File Assigning',
+                    html: `<p><b>${req.body.file}</b> has been assigned to you</p>`
+                }
+
+                var mailOptions2 = {
+                    from: 'ikamaloffc@gmail.com',
+                    to: `${r2_email}`,
+                    subject: 'Regarding File Assigning',
+                    html: `<p><b>${req.body.file}</b> has been assigned to you</p>`
+                }
+                transporter.sendMail(mailOptions, function (error, info) {
+                    if (error) {
+                        console.log(error + '296')
+                    } else {
+                        console.log('Email sent: ' + info.response)
+                    }
+                })
+                transporter.sendMail(mailOptions2, function (error, info) {
+                    if (error) {
+                        console.log(error + '296')
+                    } else {
+                        console.log('Email sent: ' + info.response)
+                    }
+                })
                 return res.status(201).json({message: "File Uploaded"})
             }
             else{
@@ -531,7 +568,7 @@ router.post('/reviewers',async(req,res)=>{
 router.put('/reviewers',async(req,res)=>{
     try{
         let acp = [],volumes = [],filtered_accp = []
-        const {comment,file,file_id,status,rev1_email,rev2_email} = req.body
+        const {comment,file,file_id,user_id,status,rev1_email,rev2_email} = req.body
         console.log(req.body)
         if(rev1_email){
             pool.query(
@@ -541,11 +578,58 @@ router.put('/reviewers',async(req,res)=>{
                         pool.query(`SELECT * FROM review WHERE file = '${file}' AND r1_status = 'Rejected' OR r2_status = 'Rejected'`,(er,ress)=>{
                             if(ress.rows != ''){
                                 pool.query(`UPDATE files SET status = $1 WHERE file = $2`,['Rejected',file])
+                                let email = pool.query(`SELECT email FROM users WHERE user_id = ${user_id}`)
+                                var transporter = nodemailer.createTransport(smtpTransport({
+                                    service: 'gmail',
+                                    auth: {
+                                        user: 'kamalesh1132002@gmail.com',
+                                        pass: 'Kamalesh5050'
+                                    }
+                                }))
+                
+                                var mailOptions = {
+                                    from: 'ikamaloffc@gmail.com',
+                                    to: `${email}`,
+                                    subject: 'Regarding File Status',
+                                    html: `<p>Your file <b>${file}</b> has been Rejected</p>`
+                                }
+                                
+                                transporter.sendMail(mailOptions, function (error, info) {
+                                    if (error) {
+                                        console.log(error + '296')
+                                    } else {
+                                        console.log('Email sent: ' + info.response)
+                                    }
+                                })
                             }
                         })
+
                         pool.query(`SELECT * FROM review WHERE file = '${file}' AND r1_status = 'Accepted' AND r2_status = 'Accepted'`,(er,ress)=>{
                         if(ress.rows != ''){
                             pool.query(`UPDATE file SET status = $1 WHERE file = $2`,['Accepted',file])
+                            let email = pool.query(`SELECT email FROM users WHERE user_id = ${user_id}`)
+                            var transporter = nodemailer.createTransport(smtpTransport({
+                                service: 'gmail',
+                                auth: {
+                                    user: 'kamalesh1132002@gmail.com',
+                                    pass: 'Kamalesh5050'
+                                }
+                            }))
+            
+                            var mailOptions = {
+                                from: 'ikamaloffc@gmail.com',
+                                to: `${email}`,
+                                subject: 'Regarding File Status',
+                                html: `<p>Your file <b>${file}</b> has been Accepted</p>`
+                            }
+
+                            transporter.sendMail(mailOptions, function (error, info) {
+                                if (error) {
+                                    console.log(error + '296')
+                                } else {
+                                    console.log('Email sent: ' + info.response)
+                                }
+                            })
                             acp = ress.rows
                             pool.query(`SELECT * FROM volumes`,(err,re)=>{
                                 if(re.rows != ''){
@@ -590,12 +674,61 @@ router.put('/reviewers',async(req,res)=>{
                             pool.query(`SELECT * FROM review WHERE file = '${file}' AND r1_status = 'Rejected' OR r2_status = 'Rejected'`,(er,ress)=>{
                                 if(ress.rows != ''){
                                     pool.query(`UPDATE files SET status = $1 WHERE file = $2`,['Rejected',file])
+                                    
+                                let email = pool.query(`SELECT email FROM users WHERE user_id = ${user_id}`)
+                                var transporter = nodemailer.createTransport(smtpTransport({
+                                    service: 'gmail',
+                                    auth: {
+                                        user: 'kamalesh1132002@gmail.com',
+                                        pass: 'Kamalesh5050'
+                                    }
+                                }))
+                
+                                var mailOptions = {
+                                    from: 'ikamaloffc@gmail.com',
+                                    to: `${email}`,
+                                    subject: 'Regarding File Status',
+                                    html: `<p>Your file <b>${file}</b> has been Rejected</p>`
+                                }
+                                
+                                transporter.sendMail(mailOptions, function (error, info) {
+                                    if (error) {
+                                        console.log(error + '296')
+                                    } else {
+                                        console.log('Email sent: ' + info.response)
+                                    }
+                                })
                                 }
                             })
+
                             pool.query(`SELECT * FROM review WHERE file = '${file}' AND r1_status = 'Accepted' AND r2_status = 'Accepted'`,(er,ress)=>{
                             if(ress.rows != ''){
                                 pool.query(`UPDATE files SET status = $1 WHERE file = $2`,['Accepted',file])
                                 acp = ress.rows
+                                let email = pool.query(`SELECT email FROM users WHERE user_id = ${user_id}`)
+                                var transporter = nodemailer.createTransport(smtpTransport({
+                                    service: 'gmail',
+                                    auth: {
+                                        user: 'kamalesh1132002@gmail.com',
+                                        pass: 'Kamalesh5050'
+                                    }
+                                }))
+                
+                                var mailOptions = {
+                                    from: 'ikamaloffc@gmail.com',
+                                    to: `${email}`,
+                                    subject: 'Regarding File Status',
+                                    html: `<p>Your file <b>${file}</b> has been Accepted</p>`
+                                }
+                                
+                                transporter.sendMail(mailOptions, function (error, info) {
+                                    if (error) {
+                                        console.log(error + '296')
+                                    } else {
+                                        console.log('Email sent: ' + info.response)
+                                    }
+                                })
+                                
                                 pool.query(`SELECT * FROM volumes`,(err,re)=>{
                                     if(re.rows != ''){
                                         if(re.rows[re.rowCount - 1].file_no === 5 && re.rows[re.rowCount - 1].no === 5){
